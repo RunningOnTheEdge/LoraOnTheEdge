@@ -9,9 +9,11 @@ public class Model {
 
     private Config cfg;
 
-    private IloIntVar[][][] x;
+    public IloIntVar[][][] x;
 
-    private IloIntVar[] c;
+    public IloIntVar[] c;
+
+    private IloIntVar[][][] p;
 
     public Model(IloModeler modeler, Config cfg) {
         this.modeler = modeler;
@@ -25,26 +27,38 @@ public class Model {
         for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
             for (int j = 0; j < this.cfg.getNumOfTasks()+2; j++) {
                 for (int k = 0; k < this.cfg.getNumOfTasks()+2; k++) {
-                    x[i][j][k] = modeler.boolVar(i+j+k+"");
+                    x[i][j][k] = modeler.boolVar("X_"+i+"_"+j+"_"+k);
                 }
             }
         }
 
         c = new IloIntVar[this.cfg.getNumOfTasks() + 1];
         for (int j = 0; j < this.cfg.getNumOfTasks()+1; j++) {
-            c[j] = modeler.intVar(0, Integer.MAX_VALUE,j+"");
+            c[j] = modeler.intVar(-1000, Integer.MAX_VALUE,"c" + j);
         }
+        c[0]= modeler.intVar(0,0,"c0");
 
+        p = new IloIntVar[this.cfg.getNumOfMachines()][this.cfg.getNumOfTasks()+2][this.cfg.getNumOfTasks()+2];
+        for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
+            for (int j = 0; j < this.cfg.getNumOfTasks()+2; j++) {
+                for (int k = 0; k < this.cfg.getNumOfTasks()+2; k++) {
+                    p[i][j][k] = modeler.intVar(0,1000,"P_"+i+"_"+j+"_"+k);
+                }
+            }
+        }
         return this;
     }
 
     public Model objective() throws IloException {
+        IloLinearNumExpr expr = this.modeler.linearNumExpr();
+        for (int i = 1; i < this.cfg.getNumOfTasks()+1; i++) {
+            IloIntVar temp = modeler.intVar(-1*this.cfg.getTasks().get(i-1).getDeadline(),
+                    -1*this.cfg.getTasks().get(i-1).getDeadline(),"D"+(i));
+            expr.addTerm(this.cfg.getTasks().get(i-1).getWeight(),c[i]);
+            expr.addTerm(this.cfg.getTasks().get(i-1).getWeight(),temp);
 
-        for (int i = 0; i < this.cfg.getNumOfTasks()+1; i++) {
-            IloIntExpr expr = modeler.prod(this.cfg.getTasks().get(i).getWeight(),
-                    modeler.sum(-1 * this.cfg.getTasks().get(i).getDeadline(), c[i]));
-            this.modeler.addMinimize(expr);
         }
+        this.modeler.addMinimize(expr);
         return this;
     }
 
@@ -53,6 +67,7 @@ public class Model {
         secondConstraint();
         thirdConstraint();
         forthConstraint();
+        fifthConstraint();
         return this;
     }
 
@@ -60,11 +75,12 @@ public class Model {
         for (int j = 1; j < this.cfg.getNumOfTasks()+1; j++) {
             IloLinearNumExpr first = this.modeler.linearNumExpr();
             for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
-                for (int k = 1; k < this.cfg.getNumOfTasks() + 1; k++) {
-                    first.addTerm(1,x[i][k][j]);
+                for (int k = 0; k < this.cfg.getNumOfTasks() + 1; k++) {
+                    if(k != j)
+                        first.addTerm(1,x[i][k][j]);
                 }
             }
-            this.modeler.addLe(first, 1,
+            this.modeler.addEq(first, 1,
                     String.format("first_constraint"));
 
         }
@@ -73,12 +89,15 @@ public class Model {
     private void secondConstraint() throws IloException {
         for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
             IloLinearNumExpr second = this.modeler.linearNumExpr();
-         if(this.cfg.getMachines().get(i).getType() == Machine.Type.fog)
-            for (int k = 1; k < this.cfg.getNumOfTasks() + 1; k++) {
-                second.addTerm(1,x[i][0][k]);
+            if(this.cfg.getMachines().get(i).getType() == Machine.Type.fog) {
+                for (int k = 1; k < this.cfg.getNumOfTasks() + 1; k++) {
+                    second.addTerm(1, x[i][0][k]);
+
+                }
+                this.modeler.addLe(second, 1,
+                        String.format("second_constraint"));
             }
-            this.modeler.addLe(second, 1,
-                    String.format("second_constraint"));
+
         }
     }
 
@@ -88,37 +107,65 @@ public class Model {
             for (int j = 1; j < this.cfg.getNumOfTasks()+1; j++) {
                 IloLinearNumExpr x1 = this.modeler.linearNumExpr();
                 IloLinearNumExpr x2 = this.modeler.linearNumExpr();
-                for (int k = 0; k < this.cfg.getNumOfTasks() ; k++) {
+                for (int k = 0; k < this.cfg.getNumOfTasks()+1 ; k++) {
                     x1.addTerm(1,x[i][k][j]);
                 }
-                for (int k = 1; k < this.cfg.getNumOfTasks()+1 ; k++) {
+                for (int k = 1; k < this.cfg.getNumOfTasks()+2 ; k++) {
                     x2.addTerm(1,x[i][j][k]);
                 }
-                this.modeler.eq(x1,x2,"third_constraint");
+                this.modeler.addEq(x1,x2,"third_constraint");
             }
         }
     }
 
     private void forthConstraint() throws IloException {
         for (int j = 1; j < this.cfg.getNumOfTasks()+1; j++){
-            IloLinearNumExpr forth = this.modeler.linearNumExpr();
+            IloIntExpr x5 = null;
             for (int i = 0; i < this.cfg.getNumOfTasks()+1; i++){
+                if(i == j)
+                    continue;
+                IloIntExpr x3 = null;
+                IloIntExpr x4 = null;
                 for (int k = 0; k < this.cfg.getNumOfMachines(); k++) {
                     if(this.cfg.getMachines().get(k).getType() == Machine.Type.fog)
                     {
-                        forth.addTerm(1, (IloNumVar) modeler.prod(x[k][i][j],
-                                modeler.sum(c[j],this.cfg.getTasks().get(j).getRequiredComputingPower()/
-                        this.cfg.getMachines().get(k).getComputingPower())));
+                        IloIntExpr x1 = modeler.prod(x[k][i][j], this.cfg.getTasks().get(j-1).getRequiredComputingPower() /
+                                this.cfg.getMachines().get(k).getComputingPower());
+                        x3 = modeler.sum(x1,p[k][i][j]);
+
                     }else{
-                        forth.addTerm(1, (IloNumVar) modeler.prod(x[k][i][j],
-                                this.cfg.getTasks().get(j).getSizeOfData()/
-                                        this.cfg.getMachines().get(k).getLinkRate()+
-                               this.cfg.getTasks().get(j).getRequiredComputingPower()/
-                                        this.cfg.getMachines().get(k).getComputingPower()));
+                        int cost = this.cfg.getTasks().get(j-1).getSizeOfData()/
+                                this.cfg.getMachines().get(k).getLinkRate()+
+                                this.cfg.getTasks().get(j-1).getRequiredComputingPower()/
+                                        this.cfg.getMachines().get(k).getComputingPower();
+                        x4 = modeler.prod(cost,x[k][i][j]);
                     }
                 }
+                if(x3 != null && x4 != null) {
+                    if (x5 == null) {
+                        x5 = modeler.sum(x3, x4);
+                    }
+                    else
+                        x5 = modeler.sum(x5, modeler.sum(x3, x4));
+                }
             }
-            this.modeler.eq(c[j],forth,"forth_constraint");
+            if (x5 != null)
+                this.modeler.addEq(c[j],x5,"forth_constraint");
+        }
+    }
+
+    private void fifthConstraint() throws IloException {
+
+        for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
+            for (int j = 0; j < this.cfg.getNumOfTasks()+1; j++) {
+                for (int k = 0; k < this.cfg.getNumOfTasks()+1; k++) {
+                    if(k == j || this.cfg.getMachines().get(i).getType() == Machine.Type.cloud)
+                        continue;
+                    this.modeler.addLe(p[i][j][k],modeler.prod(x[i][j][k],1000),"fifth_constraint");
+                    this.modeler.addLe(p[i][j][k],c[j],"fifth_constraint");
+                    this.modeler.addGe(p[i][j][k],modeler.diff(c[j],modeler.prod(1000,modeler.diff(1,x[i][j][k]))) ,"fifth_constraint");
+                }
+            }
         }
     }
 
