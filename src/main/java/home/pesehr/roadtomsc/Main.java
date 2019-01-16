@@ -10,15 +10,17 @@ import main.java.home.pesehr.roadtomsc.model.Model;
 
 public class Main {
     public static void main(String[] args) {
-        Config conf = new Config(3,2);
-        conf.addMachine(new Machine(0,10,2,Machine.Type.cloud));
+        Config conf = new Config(5,3);
+        conf.addMachine(new Machine(0,10,10,Machine.Type.cloud));
         conf.addMachine(new Machine(1,2,10,Machine.Type.fog));
+        conf.addMachine(new Machine(2,2,10,Machine.Type.fog));
 
-        conf.addTask(new Task(1,1,10,100,10));
-        conf.addTask(new Task(2,1,10,100,10));
-        conf.addTask(new Task(3,1,100,100,10));
-        // conf.addTask(new Task(4,1,10,10,10));
-        // conf.addTask(new Task(5,1,10,10,10));
+        conf.addTask(new Task(1,1,5,100,10));
+        conf.addTask(new Task(2,1,5,100,10));
+        conf.addTask(new Task(3,3,5,100,10));
+        conf.addTask(new Task(4,3,10,100,10));
+        conf.addTask(new Task(5,2,10,100,10));
+
 
         try {
             IloCplex cplex = new IloCplex();
@@ -31,14 +33,28 @@ public class Main {
                 System.out.println(" Solution Status = " + cplex.getStatus());
                 System.out.println();
                 System.out.println(" cost = " + cplex.getObjValue());
-                System.out.println();
+                int cloud = 0;
+                int dcloud = 0;
+                int dfog = 0;
+                for (int j = 0; j < conf.getNumOfTasks(); j++) {
+                    int cost = conf.getTasks().get(j).getRequiredComputingPower()/conf.getMachines().get(0).getComputingPower()
+                            + conf.getTasks().get(j).getSizeOfData()/conf.getMachines().get(0).getLinkRate();
+                    cloud += conf.getTasks().get(j).getWeight()*(-conf.getTasks().get(j).getDeadline()
+                            + cost);
+                    if(cost > conf.getTasks().get(j).getDeadline())
+                        dcloud+=conf.getTasks().get(j).getWeight();
+                }
+                System.out.println("cloud cost = " + cloud);
+                System.out.println("deadline cost cloud = " + dcloud);
                 for (int i = 0; i < conf.getNumOfMachines(); i++) {
                     for (int j = 0; j < conf.getNumOfTasks()+2; j++) {
                         for (int k = 0; k < conf.getNumOfTasks()+2; k++) {
                             try {
                                 if (cplex.getValue(model.x[i][j][k]) > 0 && k < conf.getNumOfTasks()+1) {
                                     System.out.println("Task Number " + k + " execute on machine " + i + " after " + j + " with cost:"+
-                                            cplex.getValue(model.c[k]));
+                                            cplex.getValue(model.c[k]) +" deadline:" + conf.getTasks().get(k-1).getDeadline() );
+                                    if(conf.getTasks().get(k-1).getDeadline() <     cplex.getValue(model.c[k]))
+                                        dfog+=conf.getTasks().get(k-1).getWeight();
                                 }
                             }catch (IloCplex.UnknownObjectException ignored){
 
@@ -46,6 +62,8 @@ public class Main {
                         }
                     }
                 }
+                System.out.println("deadline cost fog = " + dfog);
+                System.out.println();
             }
         } catch (IloException e) {
             e.printStackTrace();

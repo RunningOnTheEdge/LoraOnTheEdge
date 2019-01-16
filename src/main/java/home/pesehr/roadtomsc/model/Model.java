@@ -131,7 +131,10 @@ public class Model {
                     {
                         IloIntExpr x1 = modeler.prod(x[k][i][j], this.cfg.getTasks().get(j-1).getRequiredComputingPower() /
                                 this.cfg.getMachines().get(k).getComputingPower());
+                        if(x3 == null)
                         x3 = modeler.sum(x1,p[k][i][j]);
+                        else
+                            x3 = modeler.sum(x3,modeler.sum(x1,p[k][i][j]));
 
                     }else{
                         int cost = this.cfg.getTasks().get(j-1).getSizeOfData()/
