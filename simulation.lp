@@ -264,6 +264,26 @@ Subject To
  fifth_constraint:  - 1000 X_2_5_4 + P_2_5_4 <= 0
  fifth_constraint:  - c5 + P_2_5_4 <= 0
  fifth_constraint:  - c5 - 1000 X_2_5_4 + P_2_5_4 >= -1000
+ sixthConstraint:   c1 - l_0 <= 0
+ sixthConstraint:   c2 - l_1 <= 0
+ sixthConstraint:   c3 - l_2 <= 0
+ sixthConstraint:   c4 - l_3 <= 0
+ sixthConstraint:   c5 - l_4 <= 0
+ seventhConstraint: l_0 - 1000 y_1 <= 0
+ seventhConstraint: - c1 + l_0 <= 0
+ seventhConstraint: - c1 + l_0 - 1000 y_1 >= -1000
+ seventhConstraint: l_1 - 1000 y_2 <= 0
+ seventhConstraint: - c2 + l_1 <= 0
+ seventhConstraint: - c2 + l_1 - 1000 y_2 >= -1000
+ seventhConstraint: l_2 - 1000 y_3 <= 0
+ seventhConstraint: - c3 + l_2 <= 0
+ seventhConstraint: - c3 + l_2 - 1000 y_3 >= -1000
+ seventhConstraint: l_3 - 1000 y_4 <= 0
+ seventhConstraint: - c4 + l_3 <= 0
+ seventhConstraint: - c4 + l_3 - 1000 y_4 >= -1000
+ seventhConstraint: l_4 - 1000 y_5 <= 0
+ seventhConstraint: - c5 + l_4 <= 0
+ seventhConstraint: - c5 + l_4 - 1000 y_5 >= -1000
 Bounds
       c1 >= -1000
       D1 = -5
@@ -451,6 +471,16 @@ Bounds
  0 <= X_2_4_0 <= 1
  0 <= P_2_5_0 <= 1000
  0 <= X_2_5_0 <= 1
+ 1000 <= l_0 <= -1000
+ 1000 <= l_1 <= -1000
+ 1000 <= l_2 <= -1000
+ 1000 <= l_3 <= -1000
+ 1000 <= l_4 <= -1000
+ 0 <= y_1 <= 1
+ 0 <= y_2 <= 1
+ 0 <= y_3 <= 1
+ 0 <= y_4 <= 1
+ 0 <= y_5 <= 1
 Binaries
  X_0_0_1  X_0_2_1  X_0_3_1  X_0_4_1  X_0_5_1  X_1_0_1  X_1_2_1  X_1_3_1 
  X_1_4_1  X_1_5_1  X_2_0_1  X_2_2_1  X_2_3_1  X_2_4_1  X_2_5_1  X_0_0_2 
@@ -466,7 +496,7 @@ Binaries
  X_1_2_6  X_1_3_3  X_1_3_6  X_1_4_4  X_1_4_6  X_1_5_5  X_1_5_6  X_2_1_1 
  X_2_1_6  X_2_2_2  X_2_2_6  X_2_3_3  X_2_3_6  X_2_4_4  X_2_4_6  X_2_5_5 
  X_2_5_6  X_1_1_0  X_1_2_0  X_1_3_0  X_1_4_0  X_1_5_0  X_2_1_0  X_2_2_0 
- X_2_3_0  X_2_4_0  X_2_5_0 
+ X_2_3_0  X_2_4_0  X_2_5_0  y_1  y_2  y_3  y_4  y_5 
 Generals
  c1  D1  c2  D2  c3  D3  c4  D4  c5  D5  P_1_0_1  P_2_0_1  P_1_2_1  P_2_2_1 
  P_1_3_1  P_2_3_1  P_1_4_1  P_2_4_1  P_1_5_1  P_2_5_1  P_1_0_2  P_2_0_2 
@@ -475,5 +505,6 @@ Generals
  P_1_5_3  P_2_5_3  P_1_0_4  P_2_0_4  P_1_1_4  P_2_1_4  P_1_2_4  P_2_2_4 
  P_1_3_4  P_2_3_4  P_1_5_4  P_2_5_4  P_1_0_5  P_2_0_5  P_1_1_5  P_2_1_5 
  P_1_2_5  P_2_2_5  P_1_3_5  P_2_3_5  P_1_4_5  P_2_4_5  c0  P_1_1_0  P_1_2_0 
- P_1_3_0  P_1_4_0  P_1_5_0  P_2_1_0  P_2_2_0  P_2_3_0  P_2_4_0  P_2_5_0 
+ P_1_3_0  P_1_4_0  P_1_5_0  P_2_1_0  P_2_2_0  P_2_3_0  P_2_4_0  P_2_5_0  l_0 
+ l_1  l_2  l_3  l_4 
 End

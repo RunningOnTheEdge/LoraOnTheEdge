@@ -12,8 +12,10 @@ public class Model {
     public IloIntVar[][][] x;
 
     public IloIntVar[] c;
+    public IloIntVar[] y;
 
     private IloIntVar[][][] p;
+    private IloIntVar[] l;
 
     public Model(IloModeler modeler, Config cfg) {
         this.modeler = modeler;
@@ -46,6 +48,16 @@ public class Model {
                 }
             }
         }
+
+        y = new IloIntVar[this.cfg.getNumOfTasks()];
+        for (int j = 0; j < this.cfg.getNumOfTasks(); j++) {
+            y[j] = modeler.boolVar("y_"+(j+1));
+        }
+
+        l = new IloIntVar[this.cfg.getNumOfTasks()];
+        for (int j = 0; j < this.cfg.getNumOfTasks(); j++) {
+            l[j] = modeler.intVar(1000,-1000,"l_"+j);
+        }
         return this;
     }
 
@@ -68,6 +80,8 @@ public class Model {
         thirdConstraint();
         forthConstraint();
         fifthConstraint();
+        sixthConstraint();
+        seventhConstraint();
         return this;
     }
 
@@ -169,6 +183,20 @@ public class Model {
                     this.modeler.addGe(p[i][j][k],modeler.diff(c[j],modeler.prod(1000,modeler.diff(1,x[i][j][k]))) ,"fifth_constraint");
                 }
             }
+        }
+    }
+
+    private void sixthConstraint() throws IloException {
+                for (int k = 0; k < this.cfg.getNumOfTasks(); k++) {
+                    this.modeler.addLe(c[k+1],l[k],"sixthConstraint");
+                }
+    }
+
+    private void seventhConstraint() throws IloException {
+        for (int k = 0; k < this.cfg.getNumOfTasks(); k++) {
+            this.modeler.addLe(l[k],modeler.prod(y[k],1000),"seventhConstraint");
+            this.modeler.addLe(l[k],c[k+1],"seventhConstraint");
+            this.modeler.addGe(l[k],modeler.diff(c[k+1],modeler.prod(1000,modeler.diff(1,y[k]))) ,"seventhConstraint");
         }
     }
 
