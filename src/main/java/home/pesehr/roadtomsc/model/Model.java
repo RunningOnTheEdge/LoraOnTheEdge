@@ -1,11 +1,12 @@
 package main.java.home.pesehr.roadtomsc.model;
 
 import ilog.concert.*;
+import ilog.cplex.IloCplex;
 import main.java.home.pesehr.roadtomsc.domain.Machine;
 
 public class Model {
 
-    private IloModeler modeler;
+    private IloCplex modeler;
 
     private Config cfg;
 
@@ -13,11 +14,14 @@ public class Model {
 
     public IloIntVar[] c;
     public IloIntVar[] y;
+    public IloIntVar[] z;
+    public IloIntVar m;
 
     private IloIntVar[][][] p;
-    private IloIntVar[] l;
+    public IloIntVar[] l;
+    private int deadlineWeight = 100;
 
-    public Model(IloModeler modeler, Config cfg) {
+    public Model(IloCplex modeler, Config cfg) {
         this.modeler = modeler;
         this.cfg = cfg;
 
@@ -36,7 +40,7 @@ public class Model {
 
         c = new IloIntVar[this.cfg.getNumOfTasks() + 1];
         for (int j = 0; j < this.cfg.getNumOfTasks()+1; j++) {
-            c[j] = modeler.intVar(-1000, Integer.MAX_VALUE,"c" + j);
+            c[j] = modeler.intVar(-10000, 10000,"c" + j);
         }
         c[0]= modeler.intVar(0,0,"c0");
 
@@ -44,7 +48,7 @@ public class Model {
         for (int i = 0; i < this.cfg.getNumOfMachines(); i++) {
             for (int j = 0; j < this.cfg.getNumOfTasks()+2; j++) {
                 for (int k = 0; k < this.cfg.getNumOfTasks()+2; k++) {
-                    p[i][j][k] = modeler.intVar(0,1000,"P_"+i+"_"+j+"_"+k);
+                    p[i][j][k] = modeler.intVar(0,10000,"P_"+i+"_"+j+"_"+k);
                 }
             }
         }
@@ -54,20 +58,48 @@ public class Model {
             y[j] = modeler.boolVar("y_"+(j+1));
         }
 
-        l = new IloIntVar[this.cfg.getNumOfTasks()];
+        z = new IloIntVar[this.cfg.getNumOfTasks()];
         for (int j = 0; j < this.cfg.getNumOfTasks(); j++) {
-            l[j] = modeler.intVar(1000,-1000,"l_"+j);
+            z[j] = modeler.boolVar("z_"+(j+1));
         }
+
+        m = modeler.intVar(0,10000,"m");
         return this;
     }
 
-    public Model objective() throws IloException {
+    public Model objective2() throws IloException {
         IloLinearNumExpr expr = this.modeler.linearNumExpr();
         for (int i = 1; i < this.cfg.getNumOfTasks()+1; i++) {
             IloIntVar temp = modeler.intVar(-1*this.cfg.getTasks().get(i-1).getDeadline(),
                     -1*this.cfg.getTasks().get(i-1).getDeadline(),"D"+(i));
             expr.addTerm(this.cfg.getTasks().get(i-1).getWeight(),c[i]);
             expr.addTerm(this.cfg.getTasks().get(i-1).getWeight(),temp);
+
+        }
+        this.modeler.addMinimize(expr);
+        return this;
+    }
+
+
+    public Model objective3() throws IloException {
+        IloQuadIntExpr expr = this.modeler.quadIntExpr();
+        for (int i = 1; i < this.cfg.getNumOfTasks()+1; i++) {
+
+            // expr.addTerm(this.cfg.getTasks().get(i-1).getWeight()*200000,y[i-1]);
+            expr.addTerm(1,modeler.intVar(1,1,"1"),c[i]);
+            expr.addTerm(10000,z[i-1],m);
+        }
+
+
+        this.modeler.addMinimize(expr);
+        return this;
+    }
+
+    public Model objective() throws IloException {
+        IloLinearNumExpr expr = this.modeler.linearNumExpr();
+        for (int i = 0 ;i < this.cfg.getNumOfTasks(); i++) {
+
+            expr.addTerm(this.cfg.getTasks().get(i).getWeight(),y[i]);
 
         }
         this.modeler.addMinimize(expr);
@@ -82,6 +114,7 @@ public class Model {
         fifthConstraint();
         sixthConstraint();
         seventhConstraint();
+        eighthConstraint();
         return this;
     }
 
@@ -146,7 +179,7 @@ public class Model {
                         IloIntExpr x1 = modeler.prod(x[k][i][j], this.cfg.getTasks().get(j-1).getRequiredComputingPower() /
                                 this.cfg.getMachines().get(k).getComputingPower());
                         if(x3 == null)
-                        x3 = modeler.sum(x1,p[k][i][j]);
+                            x3 = modeler.sum(x1,p[k][i][j]);
                         else
                             x3 = modeler.sum(x3,modeler.sum(x1,p[k][i][j]));
 
@@ -178,26 +211,29 @@ public class Model {
                 for (int k = 0; k < this.cfg.getNumOfTasks()+1; k++) {
                     if(k == j || this.cfg.getMachines().get(i).getType() == Machine.Type.cloud)
                         continue;
-                    this.modeler.addLe(p[i][j][k],modeler.prod(x[i][j][k],1000),"fifth_constraint");
+                    this.modeler.addLe(p[i][j][k],modeler.prod(x[i][j][k],10000),"fifth_constraint");
                     this.modeler.addLe(p[i][j][k],c[j],"fifth_constraint");
-                    this.modeler.addGe(p[i][j][k],modeler.diff(c[j],modeler.prod(1000,modeler.diff(1,x[i][j][k]))) ,"fifth_constraint");
+                    this.modeler.addGe(p[i][j][k],modeler.diff(c[j],modeler.prod(10000,modeler.diff(1,x[i][j][k]))) ,"fifth_constraint");
                 }
             }
         }
     }
 
     private void sixthConstraint() throws IloException {
-                for (int k = 0; k < this.cfg.getNumOfTasks(); k++) {
-                    this.modeler.addLe(c[k+1],l[k],"sixthConstraint");
-                }
+        for (int k = 0; k < this.cfg.getNumOfTasks(); k++) {
+            this.modeler.addGe(modeler.sum(modeler.diff(cfg.getTasks().get(k).getDeadline(),c[k+1]),modeler.prod(y[k],100000)),0,"sixthConstraint");
+        }
     }
 
     private void seventhConstraint() throws IloException {
         for (int k = 0; k < this.cfg.getNumOfTasks(); k++) {
-            this.modeler.addLe(l[k],modeler.prod(y[k],1000),"seventhConstraint");
-            this.modeler.addLe(l[k],c[k+1],"seventhConstraint");
-            this.modeler.addGe(l[k],modeler.diff(c[k+1],modeler.prod(1000,modeler.diff(1,y[k]))) ,"seventhConstraint");
+            this.modeler.addEq(modeler.sum(z[k],y[k]),1,"seventhConstraint");
         }
     }
 
+    private void eighthConstraint() throws IloException {
+
+        this.modeler.addEq(100,modeler.sum(m,modeler.sum(z)),"eighthConstraint");
+
+    }
 }
